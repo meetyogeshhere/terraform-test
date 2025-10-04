@@ -1,6 +1,36 @@
-- name: Configure AWS Credentials
-  uses: aws-actions/configure-aws-credentials@v4
-  with:
-    role-to-assume: arn:aws:iam::566702742140:role/GitHubActionsRole
-    aws-region: us-east-1
-    role-session-name: GitHubActionsTerraform
+name: Build My Treehouse
+
+on:
+  push:
+    branches:
+      - main # Run when you push to main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:  # This lets the robot get a badge
+      id-token: write
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3 # Grab your blueprints
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2 # Get Terraform ready
+
+    - name: Show GitHub Badge to AWS
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: us-east-1  # Your playground area
+        role-to-assume: arn:aws:iam::566702742140:role/GitHubActionsRole
+        role-session-name: github-treehouse-session  # A fun name for the session
+
+    - name: Terraform Init
+      run: terraform init # Set up the magic
+
+    - name: Terraform Plan
+      run: terraform plan # Check the blueprint
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve # Build the treehouse!
