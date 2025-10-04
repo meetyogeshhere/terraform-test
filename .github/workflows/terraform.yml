@@ -1,4 +1,4 @@
-name: Build My Treehouse Sitee
+name: Build My Treehouse Site
 on:
   push:
     branches:
@@ -26,9 +26,9 @@ jobs:
       run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 566702742140.dkr.ecr.us-east-1.amazonaws.com
     - name: Build and Push Docker Image
       run: |
-        docker build -t new-treehouse-site .
-        docker tag new-treehouse-site:latest 566702742140.dkr.ecr.us-east-1.amazonaws.com/new-treehouse-site-2025:latest
-        docker push 566702742140.dkr.ecr.us-east-1.amazonaws.com/new-treehouse-site-2025:latest
+        docker build -t treehouse-site .
+        docker tag treehouse-site:latest 566702742140.dkr.ecr.us-east-1.amazonaws.com/treehouse-site-2025:latest
+        docker push 566702742140.dkr.ecr.us-east-1.amazonaws.com/treehouse-site-2025:latest
     - name: Terraform Init
       run: terraform init
     - name: Terraform Plan
