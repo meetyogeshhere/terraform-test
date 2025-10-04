@@ -1,4 +1,4 @@
-name: Build My Treehouse Site
+name: Build My Treehouse Sitee
 on:
   push:
     branches:
