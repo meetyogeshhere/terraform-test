@@ -11,13 +11,9 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# ECR Repository
-resource "aws_ecr_repository" "my_site_repo" {
-  name                 = "new-treehouse-site-2025"
-  image_tag_mutability = "MUTABLE"
-  image_scanning_configuration {
-    scan_on_push = true
-  }
+# Use existing ECR Repository
+data "aws_ecr_repository" "my_site_repo" {
+  name = "new-treehouse-site-2025"
 }
 
 # VPC
@@ -160,7 +156,7 @@ resource "aws_ecs_task_definition" "main" {
   container_definitions = jsonencode([
     {
       name  = "new-treehouse-container"
-      image = "${aws_ecr_repository.my_site_repo.repository_url}:latest"
+      image = "${data.aws_ecr_repository.my_site_repo.repository_url}:latest"
       essential = true
       portMappings = [
         {
