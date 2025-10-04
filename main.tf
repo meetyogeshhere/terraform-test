@@ -11,16 +11,20 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Use existing ECR Repository
-data "aws_ecr_repository" "my_site_repo" {
-  name = "my-treehouse-site"
+# ECR Repository
+resource "aws_ecr_repository" "my_site_repo" {
+  name                 = "new-treehouse-site-2025"
+  image_tag_mutability = "MUTABLE"
+  image_scanning_configuration {
+    scan_on_push = true
+  }
 }
 
 # VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
   tags = {
-    Name = "TreehouseVPC"
+    Name = "NewTreehouseVPC"
   }
 }
 
@@ -30,16 +34,16 @@ resource "aws_subnet" "public_a" {
   cidr_block        = "10.0.1.0/24"
   availability_zone = "us-east-1a"
   tags = {
-    Name = "PublicSubnetA"
+    Name = "NewPublicSubnetA"
   }
 }
 
 resource "aws_subnet" "public_b" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.2.0/24"
-  availability_zone = "us-east-1b"  # Fixed
+  availability_zone = "us-east-1b"
   tags = {
-    Name = "PublicSubnetB"
+    Name = "NewPublicSubnetB"
   }
 }
 
@@ -47,7 +51,7 @@ resource "aws_subnet" "public_b" {
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags = {
-    Name = "TreehouseIGW"
+    Name = "NewTreehouseIGW"
   }
 }
 
@@ -59,7 +63,7 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.main.id
   }
   tags = {
-    Name = "PublicRouteTable"
+    Name = "NewPublicRouteTable"
   }
 }
 
@@ -89,25 +93,25 @@ resource "aws_security_group" "web" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = "WebSecurityGroup"
+    Name = "NewWebSecurityGroup"
   }
 }
 
 # Load Balancer
 resource "aws_lb" "main" {
-  name               = "TreehouseALB"
+  name               = "NewTreehouseALB"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.web.id]
   subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
   tags = {
-    Name = "TreehouseALB"
+    Name = "NewTreehouseALB"
   }
 }
 
 # Target Group with Health Check
 resource "aws_lb_target_group" "main" {
-  name     = "TreehouseTargetGroup"
+  name     = "NewTreehouseTargetGroup"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
@@ -121,7 +125,7 @@ resource "aws_lb_target_group" "main" {
     unhealthy_threshold = 3
   }
   tags = {
-    Name = "TreehouseTargetGroup"
+    Name = "NewTreehouseTargetGroup"
   }
 }
 
@@ -132,13 +136,13 @@ resource "aws_lb_listener" "main" {
   protocol          = "HTTP"
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.main.id
+    target_group_arn = aws_lb_target_group.main.arn
   }
 }
 
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
-  name = "TreehouseCluster"
+  name = "NewTreehouseCluster"
   setting {
     name  = "containerInsights"
     value = "enabled"
@@ -147,7 +151,7 @@ resource "aws_ecs_cluster" "main" {
 
 # ECS Task Definition
 resource "aws_ecs_task_definition" "main" {
-  family                   = "TreehouseTask"
+  family                   = "NewTreehouseTask"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
@@ -155,8 +159,8 @@ resource "aws_ecs_task_definition" "main" {
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   container_definitions = jsonencode([
     {
-      name  = "treehouse-container"
-      image = "${data.aws_ecr_repository.my_site_repo.repository_url}:latest"
+      name  = "new-treehouse-container"
+      image = "${aws_ecr_repository.my_site_repo.repository_url}:latest"
       essential = true
       portMappings = [
         {
@@ -177,7 +181,7 @@ resource "aws_ecs_task_definition" "main" {
 
 # IAM Role for ECS
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "TreehouseECSTaskExecutionRole"
+  name = "NewTreehouseECSTaskExecutionRole"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -199,7 +203,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 
 # ECS Service
 resource "aws_ecs_service" "main" {
-  name            = "TreehouseService"
+  name            = "NewTreehouseService"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = 1
@@ -210,8 +214,8 @@ resource "aws_ecs_service" "main" {
     assign_public_ip = true
   }
   load_balancer {
-    target_group_arn = aws_lb_target_group.main.id
-    container_name   = "treehouse-container"
+    target_group_arn = aws_lb_target_group.main.arn
+    container_name   = "new-treehouse-container"
     container_port   = 80
   }
   depends_on = [aws_lb_listener.main]
