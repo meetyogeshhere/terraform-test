@@ -33,4 +33,4 @@ jobs:
       run: terraform plan # Check the blueprint
 
     - name: Terraform Apply
-      run: terraform apply -auto-approve # Build the treehouse
+      run: terraform apply -auto-approve # Build the treehouse!
