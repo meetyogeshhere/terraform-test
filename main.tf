@@ -93,46 +93,24 @@ resource "aws_security_group" "web" {
   }
 }
 
-# Load Balancer
-resource "aws_lb" "main" {
-  name               = "NewTreehouseALB"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.web.id]
-  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
-  tags = {
-    Name = "NewTreehouseALB"
-  }
+# Use existing Load Balancer
+data "aws_lb" "main" {
+  name = "NewTreehouseALB"
 }
 
-# Target Group with Health Check
-resource "aws_lb_target_group" "main" {
-  name     = "NewTreehouseTargetGroup"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.main.id
-  health_check {
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200"
-    interval            = 15
-    timeout             = 10
-    healthy_threshold   = 3
-    unhealthy_threshold = 3
-  }
-  tags = {
-    Name = "NewTreehouseTargetGroup"
-  }
+# Use existing Target Group
+data "aws_lb_target_group" "main" {
+  name = "NewTreehouseTargetGroup"
 }
 
 # Listener
 resource "aws_lb_listener" "main" {
-  load_balancer_arn = aws_lb.main.arn
+  load_balancer_arn = data.aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = data.aws_lb_target_group.main.arn
   }
 }
 
@@ -152,7 +130,7 @@ resource "aws_ecs_task_definition" "main" {
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
   memory                   = "512"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
+  execution_role_arn       = data.aws_iam_role.ecs_task_execution_role.arn
   container_definitions = jsonencode([
     {
       name  = "new-treehouse-container"
@@ -175,26 +153,9 @@ resource "aws_ecs_task_definition" "main" {
   ])
 }
 
-# IAM Role for ECS
-resource "aws_iam_role" "ecs_task_execution_role" {
+# Use existing IAM Role
+data "aws_iam_role" "ecs_task_execution_role" {
   name = "NewTreehouseECSTaskExecutionRole"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
-  role       = aws_iam_role.ecs_task_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
 # ECS Service
@@ -210,7 +171,7 @@ resource "aws_ecs_service" "main" {
     assign_public_ip = true
   }
   load_balancer {
-    target_group_arn = aws_lb_target_group.main.arn
+    target_group_arn = data.aws_lb_target_group.main.arn
     container_name   = "new-treehouse-container"
     container_port   = 80
   }
