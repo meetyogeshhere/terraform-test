@@ -11,9 +11,9 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Use existing ECR Repository
+# Use existing ECR Repository (manually created)
 data "aws_ecr_repository" "site_repo" {
-  name = "treehouse-site-2025"
+  name = "super-treehouse-site-2025"
 }
 
 # Use existing default VPC
@@ -54,25 +54,25 @@ resource "aws_security_group" "web" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = "Treehouse2025WebSG"
+    Name = "SuperTreehouse2025WebSG"
   }
 }
 
 # Load Balancer
 resource "aws_lb" "main" {
-  name               = "Treehouse2025ALB"
+  name               = "SuperTreehouse2025ALB"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.web.id]
   subnets            = [data.aws_subnet.public_a.id, data.aws_subnet.public_b.id]
   tags = {
-    Name = "Treehouse2025ALB"
+    Name = "SuperTreehouse2025ALB"
   }
 }
 
 # Target Group with Health Check
 resource "aws_lb_target_group" "main" {
-  name        = "Treehouse2025TG"
+  name        = "SuperTreehouse2025TG"
   port        = 80
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.main.id
@@ -87,7 +87,7 @@ resource "aws_lb_target_group" "main" {
     unhealthy_threshold = 3
   }
   tags = {
-    Name = "Treehouse2025TG"
+    Name = "SuperTreehouse2025TG"
   }
 }
 
@@ -104,7 +104,7 @@ resource "aws_lb_listener" "main" {
 
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
-  name = "Treehouse2025Cluster"
+  name = "SuperTreehouse2025Cluster"
   setting {
     name  = "containerInsights"
     value = "enabled"
@@ -113,7 +113,7 @@ resource "aws_ecs_cluster" "main" {
 
 # IAM Role for ECS Task Execution
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "Treehouse2025ECSTaskRole"
+  name = "SuperTreehouse2025ECSTaskRole"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -135,7 +135,7 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
 
 # ECS Task Definition
 resource "aws_ecs_task_definition" "main" {
-  family                   = "Treehouse2025Task"
+  family                   = "SuperTreehouse2025Task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = "256"
@@ -143,7 +143,7 @@ resource "aws_ecs_task_definition" "main" {
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   container_definitions = jsonencode([
     {
-      name  = "treehouse2025-container"
+      name  = "super-treehouse2025-container"
       image = "${data.aws_ecr_repository.site_repo.repository_url}:latest"
       essential = true
       portMappings = [
@@ -165,7 +165,7 @@ resource "aws_ecs_task_definition" "main" {
 
 # ECS Service
 resource "aws_ecs_service" "main" {
-  name            = "Treehouse2025Service"
+  name            = "SuperTreehouse2025Service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = 1
@@ -177,7 +177,7 @@ resource "aws_ecs_service" "main" {
   }
   load_balancer {
     target_group_arn = aws_lb_target_group.main.arn
-    container_name   = "treehouse2025-container"
+    container_name   = "super-treehouse2025-container"
     container_port   = 80
   }
   depends_on = [aws_lb_listener.main]
