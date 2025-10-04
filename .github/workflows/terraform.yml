@@ -1,36 +1,47 @@
-name: Build My Treehouse
+name: Build My Treehouse Site
 
 on:
   push:
     branches:
-      - main # Run when you push to main
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:  # This lets the robot get a badge
+    permissions:
       id-token: write
       contents: read
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3 # Grab your blueprints
+      uses: actions/checkout@v3
 
     - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2 # Get Terraform ready
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.0  # Pick a version
 
     - name: Show GitHub Badge to AWS
       uses: aws-actions/configure-aws-credentials@v4
       with:
-        aws-region: us-east-1  # Your playground area
+        aws-region: us-east-1
         role-to-assume: arn:aws:iam::566702742140:role/GitHubActionsRole
-        role-session-name: github-treehouse-session  # A fun name for the session
+        role-session-name: github-treehouse-session
+
+    - name: Login to ECR
+      run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 566702742140.dkr.ecr.us-east-1.amazonaws.com  # Your account ID
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t my-treehouse-site .
+        docker tag my-treehouse-site:latest 566702742140.dkr.ecr.us-east-1.amazonaws.com/my-treehouse-site:latest  # Your repo URL
+        docker push 566702742140.dkr.ecr.us-east-1.amazonaws.com/my-treehouse-site:latest
 
     - name: Terraform Init
-      run: terraform init # Set up the magic
+      run: terraform init
 
     - name: Terraform Plan
-      run: terraform plan # Check the blueprint
+      run: terraform plan
 
     - name: Terraform Apply
-      run: terraform apply -auto-approve # Build the treehouse!
+      run: terraform apply -auto-approve
