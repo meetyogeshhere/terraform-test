@@ -1,4 +1,4 @@
-name: Destroy My Treehouse
+name: Destroy My Treehous
 on:
   workflow_dispatch:  # Run manually from GitHub Actions
 jobs:
