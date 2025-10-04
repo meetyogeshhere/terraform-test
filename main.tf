@@ -8,20 +8,15 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"  # Your playground area
+  region = "us-east-1"
 }
 
-# Toy chest for Docker images (ECR Repository)
-resource "aws_ecr_repository" "my_site_repo" {
-  name                 = "my-treehouse-site"
-  image_tag_mutability = "MUTABLE"  # Let us update tags
-
-  image_scanning_configuration {
-    scan_on_push = true  # Check for bugs automatically
-  }
+# Use existing ECR Repository
+data "aws_ecr_repository" "my_site_repo" {
+  name = "my-treehouse-site"
 }
 
-# VPC (safe neighborhood for your site)
+# VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
   tags = {
@@ -29,7 +24,7 @@ resource "aws_vpc" "main" {
   }
 }
 
-# Public subnets (streets where visitors can reach you)
+# Public Subnets
 resource "aws_subnet" "public_a" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.1.0/24"
@@ -42,13 +37,13 @@ resource "aws_subnet" "public_a" {
 resource "aws_subnet" "public_b" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.2.0/24"
-  availability_zone = "us-east-1a"
+  availability_zone = "us-east-1b"  # Fixed
   tags = {
     Name = "PublicSubnetB"
   }
 }
 
-# Internet gateway (door to the outside world)
+# Internet Gateway
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags = {
@@ -56,15 +51,13 @@ resource "aws_internet_gateway" "main" {
   }
 }
 
-# Route table (map to the internet)
+# Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
-
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.main.id
   }
-
   tags = {
     Name = "PublicRouteTable"
   }
@@ -80,99 +73,90 @@ resource "aws_route_table_association" "b" {
   route_table_id = aws_route_table.public.id
 }
 
-# Security group (fence: allow web traffic)
+# Security Group
 resource "aws_security_group" "web" {
   vpc_id = aws_vpc.main.id
-
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Anyone can visit port 80
+    cidr_blocks = ["0.0.0.0/0"]
   }
-
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
   tags = {
     Name = "WebSecurityGroup"
   }
 }
 
-# Load balancer (welcomer for visitors)
+# Load Balancer
 resource "aws_lb" "main" {
   name               = "TreehouseALB"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.web.id]
   subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]
-
   tags = {
     Name = "TreehouseALB"
   }
 }
 
-# Target group (where to send visitors)
+# Target Group with Health Check
 resource "aws_lb_target_group" "main" {
   name     = "TreehouseTargetGroup"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.main.id
-
   health_check {
     path                = "/"
     protocol            = "HTTP"
     matcher             = "200"
-    interval            = 30
-    timeout             = 5
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
+    interval            = 15
+    timeout             = 10
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
   }
-
   tags = {
     Name = "TreehouseTargetGroup"
   }
 }
 
-# Listener (ear on the door for port 80)
+# Listener
 resource "aws_lb_listener" "main" {
-  load_balancer_arn = aws_lb.main.arn  # Fixed: Use aws_lb.main.arn
+  load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
-
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.main.id
   }
 }
 
-# ECS Cluster (playground for your Docker boxes)
+# ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "TreehouseCluster"
-
   setting {
     name  = "containerInsights"
     value = "enabled"
   }
 }
 
-# Task definition (what your Docker box does)
+# ECS Task Definition
 resource "aws_ecs_task_definition" "main" {
   family                   = "TreehouseTask"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"  # Small brain for the box
-  memory                   = "512"  # Small memory
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn  # Magic to pull from ECR
-
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   container_definitions = jsonencode([
     {
       name  = "treehouse-container"
-      image = "${aws_ecr_repository.my_site_repo.repository_url}:latest"  # Your Docker box from ECR
+      image = "${data.aws_ecr_repository.my_site_repo.repository_url}:latest"
       essential = true
       portMappings = [
         {
@@ -180,14 +164,20 @@ resource "aws_ecs_task_definition" "main" {
           hostPort      = 80
         }
       ]
+      healthCheck = {
+        command = ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+        interval = 30
+        timeout = 5
+        retries = 3
+        startPeriod = 10
+      }
     }
   ])
 }
 
-# IAM role for ECS to pull Docker images
+# IAM Role for ECS
 resource "aws_iam_role" "ecs_task_execution_role" {
   name = "TreehouseECSTaskExecutionRole"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -207,25 +197,22 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# ECS Service (keeps your box running)
+# ECS Service
 resource "aws_ecs_service" "main" {
   name            = "TreehouseService"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.main.arn
-  desired_count   = 1  # One box running
+  desired_count   = 1
   launch_type     = "FARGATE"
-
   network_configuration {
     security_groups  = [aws_security_group.web.id]
     subnets          = [aws_subnet.public_a.id, aws_subnet.public_b.id]
     assign_public_ip = true
   }
-
   load_balancer {
     target_group_arn = aws_lb_target_group.main.id
     container_name   = "treehouse-container"
     container_port   = 80
   }
-
   depends_on = [aws_lb_listener.main]
 }
