@@ -1,21 +1,47 @@
-name: Destroy My Treehous
+name: Build My Treehouse Site
+
 on:
-  workflow_dispatch:  # Run manually from GitHub Actions
+  push:
+    branches:
+      - main
+
 jobs:
-  destroy:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
+
     steps:
-    - uses: actions/checkout@v3
-    - uses: hashicorp/setup-terraform@v2
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
       with:
-        terraform_version: 1.5.0
-    - uses: aws-actions/configure-aws-credentials@v4
+        terraform_version: 1.5.0  # Pick a version
+
+    - name: Show GitHub Badge to AWS
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-region: us-east-1
         role-to-assume: arn:aws:iam::566702742140:role/GitHubActionsRole
         role-session-name: github-treehouse-session
-    - run: terraform init
-    - run: terraform destroy -auto-approve
+
+    - name: Login to ECR
+      run: aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 566702742140.dkr.ecr.us-east-1.amazonaws.com  # Your account ID
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t my-treehouse-site .
+        docker tag my-treehouse-site:latest 566702742140.dkr.ecr.us-east-1.amazonaws.com/my-treehouse-site:latest  # Your repo URL
+        docker push 566702742140.dkr.ecr.us-east-1.amazonaws.com/my-treehouse-site:latest
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Plan
+      run: terraform plan
+
+    - name: Terraform Apply
+      run: terraform apply -auto-approve
