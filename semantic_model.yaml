@@ -1,5 +1,6 @@
 name: company_data_model
 description: Employee and company data
+
 tables:
   - name: company_data
     description: Contains employee information
@@ -7,34 +8,45 @@ tables:
       database: CORTEX_DEMO
       schema: DOCS
       table: company_data
-    columns:
-      - name: id
-        description: Unique employee ID
-        expr: id
-        data_type: NUMBER
-        kind: MEASURE
+
+    dimensions:
       - name: employee_name
         description: Full name of employee
         expr: employee_name
         data_type: TEXT
-        kind: DIMENSION
+
       - name: department
-        description: Department name like Engineering, Marketing, HR, Sales
+        description: Department name like Engineering Marketing HR Sales
         expr: department
         data_type: TEXT
-        kind: DIMENSION
-      - name: salary
-        description: Annual salary in USD
-        expr: salary
-        data_type: NUMBER
-        kind: MEASURE
+
       - name: location
         description: Office location city
         expr: location
         data_type: TEXT
-        kind: DIMENSION
+
       - name: joining_date
-        description: Date when employee joined
+        description: Date employee joined
         expr: joining_date
         data_type: DATE
-        kind: DIMENSION
+
+    measures:
+      - name: employee_count
+        description: Total number of employees
+        expr: COUNT(*)
+        data_type: NUMBER
+
+      - name: average_salary
+        description: Average salary of employees
+        expr: AVG(salary)
+        data_type: NUMBER
+
+      - name: total_salary
+        description: Total salary cost
+        expr: SUM(salary)
+        data_type: NUMBER
+
+      - name: salary
+        description: Individual employee salary in USD
+        expr: salary
+        data_type: NUMBER
