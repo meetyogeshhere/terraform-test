@@ -10,19 +10,25 @@ tables:
     columns:
       - name: id
         description: Unique employee ID
+        expr: id
         data_type: NUMBER
       - name: employee_name
         description: Full name of employee
+        expr: employee_name
         data_type: TEXT
       - name: department
         description: Department name like Engineering, Marketing, HR, Sales
+        expr: department
         data_type: TEXT
       - name: salary
         description: Annual salary in USD
+        expr: salary
         data_type: NUMBER
       - name: location
         description: Office location city
+        expr: location
         data_type: TEXT
       - name: joining_date
         description: Date when employee joined
+        expr: joining_date
         data_type: DATE
